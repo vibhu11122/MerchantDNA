@@ -10,9 +10,11 @@ theme.setup("Home")
 theme.need_artefacts()
 s, m = data.scores(), data.metrics()
 
-st.title("🧬 MerchantDNA")
-st.markdown("### Learns what a legitimate business looks like from **behaviour, not paperwork**, "
-            "tests every deviation against legitimate explanations, then responds proportionately.")
+st.markdown('<div class="kicker">Follow the Money · PayU × IIM Bangalore</div>', unsafe_allow_html=True)
+st.title("MerchantDNA")
+st.markdown('<p style="font-size:1.35rem;font-weight:600;line-height:1.4;color:#1e293b">Learns what a legitimate '
+            'business looks like from <span style="color:#1d4ed8">behaviour, not paperwork</span>, tests every deviation '
+            'against legitimate explanations, then responds proportionately.</p>', unsafe_allow_html=True)
 st.markdown('<p class="note">We detect <b>purpose drift</b>: behaviour that does not fit the declared '
             'category. Betting collection is the motivating case. These are signals, not proof: a human '
             'analyst decides. All data on this page is synthetic.</p>', unsafe_allow_html=True)

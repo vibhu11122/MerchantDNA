@@ -1,0 +1,14 @@
+# Streamlit theme: colours used by native widgets (sliders, buttons, inputs, charts).
+[theme]
+base = "light"
+primaryColor = "#1d4ed8"
+backgroundColor = "#f6f7fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
