@@ -1,0 +1,241 @@
+# MerchantDNA configuration. Every tunable number lives here, not in code.
+
+seed: 42
+
+paths:
+  data: data
+  artifacts: artifacts
+  reports: reports
+
+# ---------------------------------------------------------------- simulator
+sim:
+  end_date: "2026-11-11"          # scoring "as-of" day (last simulated day)
+  full:  {n_merchants: 800, n_days: 120}
+  small: {n_merchants: 120, n_days: 60}
+  baseline_frac: 0.375            # first 37.5% of days = merchant's "history"
+
+  # Real Diwali 2026 dates; the cricket league is synthetic (see docs/decisions.md)
+  diwali_window: ["2026-10-30", "2026-11-10"]
+  diwali_peak:   ["2026-11-06", "2026-11-09"]
+  other_festivals:                # [start, end, volume multiplier for all merchants]
+    - ["2026-08-15", "2026-08-15", 1.2]
+    - ["2026-08-28", "2026-08-28", 1.3]
+    - ["2026-09-14", "2026-09-15", 1.3]
+    - ["2026-10-11", "2026-10-20", 1.25]
+  match_day_prob: 0.4             # share of days with a T20 league match
+  match_start_hour: 19.5
+  match_end_hour: 23.0
+  wickets_per_match: 12
+
+  cities:                         # name, state, tier
+    - [Bengaluru, Karnataka, 1]
+    - [Mumbai, Maharashtra, 1]
+    - [Delhi, Delhi, 1]
+    - [Chennai, Tamil Nadu, 1]
+    - [Hyderabad, Telangana, 1]
+    - [Pune, Maharashtra, 1]
+    - [Kolkata, West Bengal, 1]
+    - [Jaipur, Rajasthan, 2]
+    - [Lucknow, Uttar Pradesh, 2]
+    - [Indore, Madhya Pradesh, 2]
+    - [Kochi, Kerala, 2]
+    - [Surat, Gujarat, 2]
+    - [Patna, Bihar, 2]
+    - [Bhopal, Madhya Pradesh, 2]
+    - [Nagpur, Maharashtra, 2]
+    - [Guwahati, Assam, 2]
+    - [Chandigarh, Punjab, 2]
+    - [Coimbatore, Tamil Nadu, 2]
+    - [Visakhapatnam, Andhra Pradesh, 2]
+    - [Ranchi, Jharkhand, 2]
+  daily_noise_shape: 20          # gamma overdispersion of daily volume (higher = steadier)
+  regulars_per_daily_txn: 2.0     # size of a merchant's regular-customer pool, per avg daily txn
+  bet_scale: [1.0, 2.0]           # betting volume relative to the cover business
+  bet_local_cover_share: 0.25     # betting-mode txns paid by local (cover) payers
+  ring_payer_pool: 600
+  ring_payer_share: 0.5           # share of a ring member's betting txns from the ring pool
+  city_payer_pool: 200000         # payers who live in each city
+  nonlocal_payer_share: 0.05      # legit customers from other cities
+
+  # Category profiles. hourly = 24 weights (normalised in code).
+  # amount = lognormal(median, sigma) mixed with fixed price points.
+  categories:
+    bakery:
+      weekend_mult: 1.15
+      share: 0.20
+      base_daily: 35
+      hourly: [0,0,0,0,0,1,3,7,9,8,6,5,5,4,4,5,7,9,9,7,4,2,1,0]
+      amount_median: 180
+      amount_sigma: 0.6
+      price_points: {}
+      diwali_mult: 1.8
+      repeat_prob: 0.30
+      card_share: 0.15
+      refund_rate: 0.005
+    grocery:
+      weekend_mult: 1.1
+      share: 0.20
+      base_daily: 70
+      hourly: [0,0,0,0,0,0,2,5,7,8,8,7,6,5,5,6,7,8,9,8,6,3,1,0]
+      amount_median: 350
+      amount_sigma: 0.8
+      price_points: {}
+      diwali_mult: 1.6
+      repeat_prob: 0.35
+      card_share: 0.2
+      refund_rate: 0.008
+    restaurant:
+      weekend_mult: 1.25
+      share: 0.18
+      base_daily: 45
+      hourly: [0,0,0,0,0,0,0,1,2,3,3,4,9,10,8,3,2,3,5,9,10,8,4,1]
+      amount_median: 450
+      amount_sigma: 0.6
+      price_points: {}
+      diwali_mult: 1.3
+      repeat_prob: 0.20
+      card_share: 0.3
+      refund_rate: 0.01
+    electronics:
+      weekend_mult: 1.3
+      share: 0.12
+      base_daily: 10
+      hourly: [0,0,0,0,0,0,0,0,0,1,3,6,8,8,7,7,8,9,10,9,6,2,0,0]
+      amount_median: 4000
+      amount_sigma: 1.0
+      price_points: {}
+      diwali_mult: 2.5
+      repeat_prob: 0.05
+      card_share: 0.5
+      refund_rate: 0.03
+    pharmacy:
+      weekend_mult: 1.0
+      share: 0.15
+      base_daily: 40
+      hourly: [1,1,1,0,0,0,1,3,6,8,8,7,6,5,5,6,7,8,9,9,7,5,3,2]
+      amount_median: 300
+      amount_sigma: 0.7
+      price_points: {}
+      diwali_mult: 1.0
+      repeat_prob: 0.30
+      card_share: 0.2
+      refund_rate: 0.006
+    gym_or_tuition:               # hard negative: legitimately uses fixed prices
+      weekend_mult: 0.6
+      month_start_mult: 2.5      # fees are paid in the first days of the month
+      share: 0.15
+      base_daily: 5
+      hourly: [0,0,0,0,0,2,6,8,6,4,3,2,2,2,2,3,5,8,9,8,5,2,0,0]
+      amount_median: 1500
+      amount_sigma: 0.4
+      price_points: {999: 0.35, 1499: 0.25, 1999: 0.25}
+      diwali_mult: 0.9
+      repeat_prob: 0.60
+      card_share: 0.15
+      refund_rate: 0.004
+
+  # Betting-style behaviour used by every fraud archetype
+  betting:
+    hourly: [6,4,2,1,0,0,0,0,0,0,1,1,1,1,1,1,2,3,4,6,10,12,12,9]
+    price_points: {499: 0.30, 999: 0.40, 1999: 0.20}   # rest = cover amounts
+    match_volume_mult: 2.5
+    post_wicket_share: 0.35       # share of match-evening txns right after wickets
+    post_wicket_minutes: 10
+    bettor_pool: 3000             # nationwide payers who bet
+    bettors_per_merchant: 400
+    bettor_repeat_prob: 0.75
+    payout_delay_hours: [2, 6]
+    refund_rate: 0.001
+    card_share: 0.02
+
+  legit_payout_delay_hours: [24, 48]
+  legit_fast_payout_share: 0.10   # honest merchants who also use instant settlement
+
+  # Merchant archetype mix (shares of the non-hero population)
+  archetypes:
+    normal: 0.602
+    festival_surge: 0.10          # assigned to bakery / grocery / electronics only
+    growing: 0.08
+    new_merchant: 0.08
+    franchise: 0.06
+    family_shared_device: 0.02    # honest merchants sharing one device (hard negative)
+    betting_collector: 0.018
+    slow_drift: 0.012
+    sleeper: 0.008
+    mule_network: 0.012
+    adaptive_mimic: 0.008
+  fraud_archetypes: [betting_collector, slow_drift, sleeper, mule_network, adaptive_mimic]
+  surge_mult: [8, 12]             # festival_surge peak Diwali multiplier
+  growth_total: [1.5, 2.5]        # growing merchant: volume multiple over the period
+  new_merchant_age_days: [10, 40]
+  franchise_size: [3, 5]
+  mule_ring_size: [3, 6]
+  mule_betting_intensity: 0.5
+  front_store_ring_payer_share: 0.10   # clean "front" store in a ring (e.g. QuickKart)
+  drift_ramp_days: [28, 42]       # slow_drift: 4-6 weeks
+  drift_start_frac: [0.45, 0.6]
+  sleeper_wake_frac: [0.65, 0.8]
+  sleeper_dormant_mult: 0.1
+  sleeper_burst_mult: [3, 5]
+  website_share: 0.55             # merchants that have a website (fraud and legit alike)
+  gaming_text_share: 0.5          # fraud websites that leak gaming words
+
+# ---------------------------------------------------------------- features
+features:
+  window_long: 30
+  window_short: 7
+  snapshot_every: 7               # weekly snapshots for trajectories / lead time
+  night_hours: [0, 5]
+  evening_hours: [19, 23]
+  price_points: [499, 999, 1999]
+  amount_bins: [0, 50, 100, 150, 200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 5000, 8000, 15000, 1000000]
+  burst_bucket_minutes: 10
+  min_history_days: 7             # fewer active baseline days = cold start (no history view)
+  post_wicket_prior_txns: 20      # pseudo-count that shrinks the wicket lift of tiny samples
+
+# ---------------------------------------------------------------- models
+models:
+  cv_folds: 5
+  website: {max_features: 2000, C: 2.0}
+  verifier: {n_estimators: 200, learning_rate: 0.05, num_leaves: 15, min_child_samples: 10}
+  autoencoder: {hidden: [32, 12, 32], max_iter: 400, alpha: 0.0001}
+  umap: {n_neighbors: 25, min_dist: 0.3}
+  network:
+    attr_strength: {device: 1.0, bank: 1.0, ip: 0.4, address: 0.15, gstin: 0.15}
+    payer_min_shared: 5
+    payer_min_jaccard: 0.02
+    payer_max_merchants_per_payer: 50
+  innocence:
+    quantiles: [0.05, 0.5, 0.95]
+    peer_band: [0.1, 0.9]         # peer uplift percentiles that define "normal for peers"
+    exceed_tolerance: 0.15        # share of window days allowed above the band
+    composition_z: 3.0            # robust z above which a composition shift "fires"
+    min_peer_uplift_festival: 1.3
+  fusion:
+    labelled_share: 0.10
+    labelled_fraud_share: 0.25
+    population_prior: 0.05        # analysts' estimate of drift prevalence
+    n_estimators: 150
+    learning_rate: 0.05
+    max_depth: 2
+    min_child_samples: 4
+
+# ---------------------------------------------------------------- decision
+decision:
+  tiers: {medium: 30, high: 70}   # 0-100 risk score thresholds
+  harm_if_missed: 500000          # INR, expected loss + regulatory exposure
+  cost_disrupt_legit: 40000       # INR, cost of wrongly disrupting an honest merchant
+  analyst_capacity: 25            # merchants analysts can review per cycle
+  rungs:                          # [name, share of harm prevented, share of disruption cost]
+    - [Monitor, 0.0, 0.0]
+    - [Soft step-up (ask merchant to explain), 0.25, 0.02]
+    - [Rolling reserve / settlement hold, 0.6, 0.15]
+    - [Limit reduction, 0.75, 0.35]
+    - [Suspend + escalate, 1.0, 1.0]
+
+# ---------------------------------------------------------------- evaluation
+eval:
+  review_budget: 0.02
+  rule_volume_ratio: 3.0
+  rule_night_share: 0.20
+  iforest_contamination: 0.05
