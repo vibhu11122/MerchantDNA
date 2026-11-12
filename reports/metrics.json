@@ -311,17 +311,10 @@
         "rules_day": null,
         "iforest_day": 98.0,
         "last_day": 119
-      },
-      {
-        "merchant_id": "M0001",
-        "merchantdna_day": 70,
-        "rules_day": null,
-        "iforest_day": 77.0,
-        "last_day": 119
       }
     ],
-    "detected_by_merchantdna": 10,
-    "n": 10,
+    "detected_by_merchantdna": 9,
+    "n": 9,
     "median_lead_vs_rules_days": 49.0,
     "median_lead_vs_iforest_days": 14.0
   },

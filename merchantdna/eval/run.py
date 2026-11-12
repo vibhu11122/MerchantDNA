@@ -132,7 +132,7 @@ def main() -> None:
 
     snap = read_table("snapshot_scores", "artifacts")
     fsnap = read_table("features_snapshots", "artifacts").set_index("merchant_id")
-    drift_ids = [m for m in ev if truth.loc[m, "archetype"] == "slow_drift"] + ["M0001"]
+    drift_ids = [m for m in truth.index[truth["archetype"] == "slow_drift"] if m in ev or m in HEROES]
     lead = lead_times(snap, fsnap, drift_ids, iforest, cfg)
 
     se = scores.loc[ev].assign(flag=scores.loc[ev, "risk_score"] >= medium)
