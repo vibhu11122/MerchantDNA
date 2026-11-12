@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import networkx as nx
-import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from pyvis.network import Network
@@ -10,16 +9,16 @@ from pyvis.network import Network
 import data
 import theme
 
-theme.setup("Network Graph", "🕸️")
+theme.setup("Network Graph")
 theme.need_artefacts()
 s = data.scores()
 bundle = data.artifact("bundle")
 ident, payer = bundle.ident_graph, bundle.payer_graph
 
-st.title("🕸️ Network Graph")
-st.markdown("Merchants are linked when they share an identifier or many payers. **Thicker line = rarer shared "
-            "identifier** (a shared device or bank account is strong, a shared franchise GST number is weak).")
-c = st.columns([2, 1, 1])
+theme.page_header("Network Graph", "Merchants are linked when they share an identifier or many payers. "
+                  "<b>Thicker line = rarer shared identifier</b>: a shared device or bank account is strong, "
+                  "a shared franchise GST number is weak.")
+c = st.columns([2.2, 1, 1.2])
 with c[0]:
     mid = theme.merchant_picker(s, "net", default="M0002")
 hops = c[1].radio("Hops", [1, 2], index=1, horizontal=True)
@@ -36,32 +35,40 @@ if show_payer:
 g.add_node(mid)
 sub = g.subgraph(nx.ego_graph(g, mid, radius=hops).nodes)
 
-net = Network(height="650px", width="100%", bgcolor="#ffffff", font_color="#111827", cdn_resources="in_line")
-net.barnes_hut(gravity=-6000, spring_length=160)
+net = Network(height="620px", width="100%", bgcolor="#ffffff", font_color=theme.INK, cdn_resources="in_line")
+net.barnes_hut(gravity=-7000, spring_length=170)
 for n in sub.nodes:
     r = s.loc[n]
-    net.add_node(n, label=f"{r['name']}\n{r['risk_score']:.0f}", color=theme.TIER_COLOR[r["tier"]],
-                 size=14 + 0.35 * r["risk_score"], borderWidth=5 if n == mid else 1,
+    net.add_node(n, label=f"{r['name']}\n{r['risk_score']:.0f}", color={"background": theme.TIER_COLOR[r["tier"]],
+                 "border": theme.NAVY if n == mid else "#ffffff"}, size=14 + 0.35 * r["risk_score"],
+                 borderWidth=5 if n == mid else 2,
                  title=f"{r['name']} ({n})\n{r['declared_category']}, {r['city']}\nRisk {r['risk_score']:.0f} ({r['tier']})",
-                 font={"size": 20})
+                 font={"size": 18, "face": "Inter"})
 for a, b, d in sub.edges(data=True):
     if d.get("via"):
-        net.add_edge(a, b, value=d["weight"], color="#374151",
+        net.add_edge(a, b, value=d["weight"], color="#475569",
                      title=f"Shares {' + '.join(sorted(set(d['via'])))} (strength {d['weight']:.1f})")
     if d.get("payer_jaccard"):
-        net.add_edge(a, b, value=1 + 20 * d["payer_jaccard"], color="#2563eb", dashes=True,
+        net.add_edge(a, b, value=1 + 20 * d["payer_jaccard"], color=theme.BLUE, dashes=True,
                      title=f"Shares {d['payer_jaccard']:.0%} of payers")
-components.html(net.generate_html(), height=680)
-st.caption("Red = high, orange = medium, green = low risk; node label = risk score. Grey solid = shared identifier, "
-           "blue dashed = shared payers. Hover a line to see what is shared.")
 
-st.subheader(f"What {s.loc[mid, 'name']} shares")
-for line in data.evidence()[mid]["network"] or ["No notable links."]:
-    st.markdown(f"- {line}")
-
-st.subheader("Most suspicious linked clusters (Louvain communities)")
-comm = s[s["community"].map(s["community"].value_counts()) > 1].groupby("community").agg(
-    merchants=("name", "size"), mean_risk=("risk_score", "mean"), max_risk=("risk_score", "max"),
-    members=("name", lambda x: ", ".join(x.head(6))))
-st.dataframe(comm.sort_values("mean_risk", ascending=False).head(10).style.format(
-    {"mean_risk": "{:.0f}", "max_risk": "{:.0f}"}), use_container_width=True)
+left, right = st.columns([1.6, 1])
+with left, st.container(border=True):
+    st.markdown('<div class="ptitle">Linked merchants <span>node size and colour = risk · hover a line to see what is shared</span></div>',
+                unsafe_allow_html=True)
+    components.html(net.generate_html(), height=640)
+    st.markdown(f'{theme.chip("HIGH", "red")}{theme.chip("MEDIUM", "amber")}{theme.chip("LOW", "green")} &nbsp; '
+                f'<span style="color:{theme.MUTED};font-size:0.9rem">grey solid = shared identifier · blue dashed = shared payers</span>',
+                unsafe_allow_html=True)
+with right:
+    with st.container(border=True):
+        st.markdown(f'<div class="ptitle">What {theme.esc(s.loc[mid, "name"])} shares</div>', unsafe_allow_html=True)
+        theme.bullet_list(data.evidence()[mid]["network"], "No notable links.")
+    with st.container(border=True):
+        st.markdown('<div class="ptitle">Most suspicious clusters <span>Louvain communities</span></div>', unsafe_allow_html=True)
+        comm = s[s["community"].map(s["community"].value_counts()) > 1].groupby("community").agg(
+            Merchants=("name", "size"), Mean_risk=("risk_score", "mean"), Max_risk=("risk_score", "max"),
+            Members=("name", lambda x: ", ".join(x.head(4))))
+        comm = comm.sort_values("Mean_risk", ascending=False).head(8).rename(columns={"Mean_risk": "Mean risk", "Max_risk": "Max risk"})
+        st.dataframe(comm.style.format({"Mean risk": "{:.0f}", "Max risk": "{:.0f}"}), use_container_width=True,
+                     hide_index=True, height=330)

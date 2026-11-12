@@ -8,28 +8,36 @@ import theme
 from merchantdna.decision.explain_step import REASONS
 from merchantdna.decision.report import investigation_markdown, markdown_to_pdf
 
-theme.setup("Investigation Report", "📄")
+theme.setup("Investigation Report")
 theme.need_artefacts()
 s, ev_all = data.scores(), data.evidence()
 
-st.title("📄 Investigation Report")
+theme.page_header("Investigation Report", "The audit trail for one merchant: score, reasons, evidence, the Innocence "
+                  "assessment, network findings, the merchant's own explanation and the recommended action.")
 mid = theme.merchant_picker(s, "rep")
-ev = dict(ev_all[mid])
+r, ev = s.loc[mid], dict(ev_all[mid])
 
-st.subheader("Merchant \"Explain\" step")
-st.markdown("Before any hold, the merchant may give a reason. We check the claim against the data and record the result.")
-reason = st.radio("Merchant's stated reason", ["(no explanation yet)"] + REASONS, horizontal=True)
-if reason != "(no explanation yet)":
-    claim = ev["claims"][reason]
-    ev["claim"] = claim
-    (st.success if claim["accepted"] else st.error)(claim["summary"])
-    for k in claim["checks"]:
-        st.markdown(f"{'✅' if k['passed'] else '❌'} {k['check']}")
+theme.merchant_header(r, ev)
+st.markdown("")
 
-md = investigation_markdown(ev)
-st.divider()
-st.markdown(md)
-c = st.columns(2)
-c[0].download_button("Download report (Markdown)", md, file_name=f"report_{mid}.md", mime="text/markdown")
-c[1].download_button("Download report (PDF)", markdown_to_pdf(md), file_name=f"report_{mid}.pdf",
-                     mime="application/pdf")
+left, right = st.columns([1, 1.6])
+with left, st.container(border=True):
+    st.markdown('<div class="ptitle">Merchant "Explain" step <span>before any hold</span></div>', unsafe_allow_html=True)
+    st.caption("The merchant may give a reason. We test the claim against the data and record the result either way.")
+    reason = st.radio("Merchant's stated reason", ["(no explanation yet)"] + REASONS)
+    if reason != "(no explanation yet)":
+        claim = ev["claims"][reason]
+        ev["claim"] = claim
+        tone, col = ("green", "#f0fdf4") if claim["accepted"] else ("red", "#fef2f2")
+        st.markdown(f'<div class="verdict" style="background:{col}"><div class="t" style="color:{theme.TONE[tone]}">'
+                    f'{"Claim consistent with the data" if claim["accepted"] else "Claim not supported by the data"}</div></div>',
+                    unsafe_allow_html=True)
+        theme.checks(claim)
+    st.markdown("")
+    md = investigation_markdown(ev)
+    c = st.columns(2)
+    c[0].download_button("⬇ Markdown", md, file_name=f"report_{mid}.md", mime="text/markdown", use_container_width=True)
+    c[1].download_button("⬇ PDF", markdown_to_pdf(md), file_name=f"report_{mid}.pdf", mime="application/pdf",
+                         use_container_width=True)
+with right, st.container(border=True):
+    st.markdown(md)
