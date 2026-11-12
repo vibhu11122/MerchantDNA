@@ -8,6 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "app"))      # streamlit run adds the app folder; tests must too
 
 
 @pytest.fixture(scope="session")
