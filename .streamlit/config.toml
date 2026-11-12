@@ -1,10 +1,10 @@
-# Streamlit theme: colours used by native widgets (sliders, buttons, inputs, charts).
+# Streamlit theme matched to the VAJRA deck: near-black, violet primary.
 [theme]
-base = "light"
-primaryColor = "#1d4ed8"
-backgroundColor = "#f8fafc"
-secondaryBackgroundColor = "#ffffff"
-textColor = "#0f172a"
+base = "dark"
+primaryColor = "#a855f7"
+backgroundColor = "#0b0a14"
+secondaryBackgroundColor = "#17142a"
+textColor = "#f1eefb"
 font = "sans serif"
 
 [server]

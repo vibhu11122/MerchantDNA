@@ -59,7 +59,7 @@ with left, st.container(border=True):
 with right, st.container(border=True):
     st.markdown('<div class="ptitle">Precision–recall curves</div>', unsafe_allow_html=True)
     fig = go.Figure()
-    for (label, c), col in zip(m["pr_curves"].items(), [theme.MUTED, "#0891b2", "#dc2626"]):
+    for (label, c), col in zip(m["pr_curves"].items(), ["#6b6488", "#22d3ee", "#ec4899"]):
         fig.add_trace(go.Scatter(x=c["recall"], y=c["precision"], name=label, line=dict(width=3, color=col, shape="hv")))
     fig.update_layout(height=250, xaxis_title="Recall", yaxis_title="Precision", margin=dict(t=30))
     st.plotly_chart(fig, use_container_width=True, theme=None)

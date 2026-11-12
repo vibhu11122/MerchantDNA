@@ -16,7 +16,9 @@ theme.page_header(
     "Learns what a legitimate business looks like from <b>behaviour, not paperwork</b>, tests every deviation "
     "against legitimate explanations, then responds proportionately. We detect <b>purpose drift</b> — behaviour "
     "that does not fit the declared category. Signals, not proof: a human analyst decides.",
-    kicker="Follow the Money · CSITM IIM Bangalore × PayU")
+    kicker="Follow the Money · Innovation Challenge")
+
+st.markdown('<div class="callout">Too strict hurts genuine merchants. Too lax lets fraud continue. MerchantDNA explains before it flags.</div>', unsafe_allow_html=True)
 
 theme.kpis([
     {"label": "Merchants monitored", "value": f"{len(s):,}", "sub": "120 days · 4.7M payments", "tone": "blue"},

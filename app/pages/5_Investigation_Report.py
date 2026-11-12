@@ -28,7 +28,7 @@ with left, st.container(border=True):
     if reason != "(no explanation yet)":
         claim = ev["claims"][reason]
         ev["claim"] = claim
-        tone, col = ("green", "#f0fdf4") if claim["accepted"] else ("red", "#fef2f2")
+        tone, col = ("green", "rgba(34,197,94,0.10)") if claim["accepted"] else ("red", "rgba(244,63,94,0.10)")
         st.markdown(f'<div class="verdict" style="background:{col}"><div class="t" style="color:{theme.TONE[tone]}">'
                     f'{"Claim consistent with the data" if claim["accepted"] else "Claim not supported by the data"}</div></div>',
                     unsafe_allow_html=True)

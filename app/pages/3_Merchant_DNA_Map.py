@@ -24,7 +24,7 @@ picks = st.multiselect("Follow merchants", list(s.index), default=list(theme.HER
 frames_days = sorted(traj["as_of_day"].unique())
 label = {d: ("History" if d == -1 else traj.loc[traj["as_of_day"] == d, "as_of_date"].iloc[0].strftime("%d %b"))
          for d in frames_days}
-TRAIL = [theme.INK, "#dc2626", "#d97706", "#2563eb", "#16a34a", "#7c3aed"]
+TRAIL = ["#ffffff", "#f43f5e", "#f59e0b", "#22d3ee", "#4ade80", "#a855f7"]
 
 
 def traces(day: int) -> list[go.Scatter]:
@@ -42,7 +42,7 @@ def traces(day: int) -> list[go.Scatter]:
         col = TRAIL[i % len(TRAIL)]
         out.append(go.Scatter(x=t["umap_x"], y=t["umap_y"], mode="lines+markers+text", name=s.loc[mid, "name"],
                               line=dict(color=col, width=3),
-                              marker=dict(size=[7] * (len(t) - 1) + [22], color=col, line=dict(width=2, color="white")),
+                              marker=dict(size=[7] * (len(t) - 1) + [22], color=col, line=dict(width=2, color="#0b0a14")),
                               text=[""] * (len(t) - 1) + [f"{s.loc[mid, 'name'].split()[0]}"
                                                           f"{'' if score != score else f'  ·  {score:.0f}'}"],
                               textposition="top center", textfont=dict(size=15, color=col, family="Inter")))
@@ -57,13 +57,13 @@ with st.container(border=True):
         xaxis=dict(range=[traj["umap_x"].min() - pad, traj["umap_x"].max() + pad], showticklabels=False, title="", showgrid=False, zeroline=False),
         yaxis=dict(range=[traj["umap_y"].min() - pad, traj["umap_y"].max() + pad], showticklabels=False, title="", showgrid=False, zeroline=False),
         legend=dict(orientation="v", x=1.01, y=1, yanchor="top"),
-        updatemenus=[dict(type="buttons", x=0.0, y=1.09, direction="left", bgcolor="white", bordercolor=theme.LINE,
-                          font=dict(size=14, color=theme.INK), buttons=[
+        updatemenus=[dict(type="buttons", x=0.0, y=1.09, direction="left", bgcolor="#1a1530", bordercolor="#a855f7",
+                          font=dict(size=14, color="#f1eefb"), buttons=[
             dict(label="▶  Play", method="animate",
                  args=[None, {"frame": {"duration": 900, "redraw": True}, "fromcurrent": True}]),
             dict(label="❚❚", method="animate", args=[[None], {"mode": "immediate", "frame": {"duration": 0}}])])],
-        sliders=[dict(active=0, currentvalue=dict(prefix="Week ending: ", font=dict(size=14)), bgcolor=theme.LINE,
-                      bordercolor=theme.LINE, tickcolor=theme.MUTED, font=dict(size=12, color=theme.MUTED), steps=[
+        sliders=[dict(active=0, currentvalue=dict(prefix="Week ending: ", font=dict(size=14)), bgcolor="#2a2340",
+                      bordercolor="#2a2340", tickcolor=theme.MUTED, font=dict(size=12, color=theme.MUTED), steps=[
             dict(label=label[d], method="animate", args=[[label[d]], {"mode": "immediate", "frame": {"redraw": True}}])
             for d in frames_days])],
     )

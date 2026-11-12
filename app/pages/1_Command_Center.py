@@ -39,7 +39,7 @@ with right, st.container(border=True):
     order = [r[0] for r in cfg["decision"]["rungs"]]
     counts = s["rung"].value_counts().reindex(order, fill_value=0)
     fig = px.bar(x=counts.values, y=[o.split(" (")[0] for o in order], orientation="h", text=counts.values)
-    fig.update_traces(marker_color=[theme.MUTED, theme.TONE["amber"], "#ea580c", "#dc2626", "#7f1d1d"],
+    fig.update_traces(marker_color=["#6b6488", "#a855f7", "#c026d3", "#ec4899", "#f97316"],
                       marker_cornerradius=6, textposition="outside", cliponaxis=False)
     fig.update_layout(height=340, xaxis_title="Merchants", yaxis_title="", yaxis=dict(autorange="reversed"),
                       xaxis=dict(range=[0, counts.max() * 1.18]))
