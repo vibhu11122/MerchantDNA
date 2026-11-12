@@ -35,9 +35,14 @@ def baseline_days(cfg: dict[str, Any], n_days: int) -> int:
 
 
 def window_features(tx: pd.DataFrame, settle: pd.DataFrame, ctx: FeatureContext, end_day: int,
-                    length: int, first_seen: pd.Series) -> pd.DataFrame:
-    """All raw feature families for one window ending on `end_day` (inclusive)."""
+                    length: int, first_seen: pd.Series, roaming: pd.Series | None = None) -> pd.DataFrame:
+    """All raw feature families for one window ending on `end_day` (inclusive).
+
+    `roaming` (payer -> number of cities) defaults to this window's own population counts;
+    single-merchant re-scoring passes the saved population counts instead.
+    """
     w = window(tx, end_day, length)
+    roaming = payer_city_counts(w) if roaming is None else roaming
     start_ts = ctx.calendar["date"].iloc[max(end_day - length + 1, 0)]
     s = settle[(settle["date"] >= start_ts) & (settle["date"] <= ctx.calendar["date"].iloc[end_day])]
     parts = [
@@ -45,7 +50,7 @@ def window_features(tx: pd.DataFrame, settle: pd.DataFrame, ctx: FeatureContext,
         time_features(w, ctx),
         burst_features(w, ctx),
         amount_features(w, ctx),
-        payer_features(w, ctx, first_seen, start_ts, payer_city_counts(w)),
+        payer_features(w, ctx, first_seen, start_ts, roaming),
         event_features(w, ctx),
         settlement_features(w, s, ctx),
         amount_histogram(w, ctx).add_prefix("a").rename(columns=lambda c: f"a{int(c[1:]):02d}"),
@@ -89,6 +94,15 @@ def daily_counts(tx: pd.DataFrame, ctx: FeatureContext) -> pd.DataFrame:
     return g.merge(ctx.calendar[["day_idx", "date"]], on="day_idx")
 
 
+def hour_day_cube(tx: pd.DataFrame, ctx: FeatureContext) -> dict[str, Any]:
+    """[merchant, day, hour] txn counts so the dashboard never scans raw transactions."""
+    ids = ctx.merchants["merchant_id"].tolist()
+    n_days = len(ctx.calendar)
+    g = tx.groupby(["merchant_id", "day_idx", "hour"], observed=False).size()
+    cube = g.reindex(pd.MultiIndex.from_product([ids, range(n_days), range(24)]), fill_value=0)
+    return {"ids": ids, "counts": cube.to_numpy().reshape(len(ids), n_days, 24).astype(np.uint16)}
+
+
 def main() -> None:
     """Compute and save all feature tables."""
     cfg = load_config()
@@ -120,6 +134,7 @@ def main() -> None:
     write_table(pd.concat(snaps).reset_index(), "features_snapshots", "artifacts")
     write_table(daily_counts(tx, ctx), "daily_counts", "artifacts")
     save_artifact(stats, "cohort_stats")
+    save_artifact(hour_day_cube(tx, ctx), "hour_day_counts")
     save_artifact(payer_city_counts(last), "payer_roaming_current")
     log.info("features: %d merchants x %d columns; %d snapshots", len(cur), cur.shape[1], len(snaps))
     assert not (set(cur.columns) & C.LABEL_LIKE), "label leaked into features"
