@@ -14,24 +14,30 @@ from merchantdna.sim.archetypes import daily_plan
 @dataclass
 class PayerPools:
     """Home city of every payer in the shared pools (bettors and mule rings)."""
-    bettor_city: np.ndarray      # city index of each nationwide bettor
+    bettor_city: np.ndarray      # city index of each nationwide bettor (all communities)
     ring_city: np.ndarray        # city index of each ring-pool payer, flattened by ring
+    traveller_city: np.ndarray   # home city of each honest traveller
 
 
 def make_pools(cfg: dict[str, Any], n_rings: int, rng: np.random.Generator) -> PayerPools:
     """Bettors and ring payers live all over the country (uniform over cities)."""
-    n_cities = len(cfg["sim"]["cities"])
+    sim = cfg["sim"]
+    n_cities = len(sim["cities"])
+    n_bettors = sim["betting"]["bettor_pool"] * sim["betting"]["n_bettor_communities"]
     return PayerPools(
-        bettor_city=rng.integers(0, n_cities, cfg["sim"]["betting"]["bettor_pool"]),
+        bettor_city=rng.integers(0, n_cities, n_bettors),
         ring_city=rng.integers(0, n_cities, max(n_rings, 1) * pr.RING_ID_BLOCK),
+        traveller_city=rng.integers(0, n_cities, sim["traveller_pool"]),
     )
 
 
 def payer_city_index(ids: np.ndarray, pools: PayerPools) -> np.ndarray:
     """Recover each raw payer id's home city (raw ids never leave the simulator)."""
     city = ids // pr.CITY_ID_BLOCK
+    is_traveller = (ids >= pr.TRAVELLER_ID_BASE) & (ids < pr.BETTOR_ID_BASE)
     is_bettor = (ids >= pr.BETTOR_ID_BASE) & (ids < pr.RING_ID_BASE)
     is_ring = ids >= pr.RING_ID_BASE
+    city[is_traveller] = pools.traveller_city[ids[is_traveller] - pr.TRAVELLER_ID_BASE]
     city[is_bettor] = pools.bettor_city[ids[is_bettor] - pr.BETTOR_ID_BASE]
     city[is_ring] = pools.ring_city[ids[is_ring] - pr.RING_ID_BASE]
     return city
@@ -55,13 +61,16 @@ def _legit_payers(p: dict[str, Any], cfg: dict[str, Any], n: int, rng: np.random
     sim = cfg["sim"]
     pool, n_cities = sim["city_payer_pool"], len(sim["cities"])
     repeat_p = sim["categories"][p["category"]]["repeat_prob"]
+    visitor_p = p["nonlocal_share"]
     r = rng.random(n)
     ids = p["city_idx"] * pr.CITY_ID_BLOCK + rng.integers(0, pool, n)          # local walk-in
     is_regular = r < repeat_p
     ids[is_regular] = rng.choice(regulars, size=is_regular.sum())
-    is_visitor = (r >= repeat_p) & (r < repeat_p + sim["nonlocal_payer_share"])
+    is_visitor = (r >= repeat_p) & (r < repeat_p + visitor_p)
     ids[is_visitor] = rng.integers(0, n_cities, is_visitor.sum()) * pr.CITY_ID_BLOCK \
         + rng.integers(0, pool, is_visitor.sum())
+    is_traveller = rng.random(n) < p["traveller_share"]
+    ids[is_traveller] = pr.TRAVELLER_ID_BASE + rng.integers(0, sim["traveller_pool"], is_traveller.sum())
     return ids
 
 
@@ -93,18 +102,19 @@ def generate_merchant(p: dict[str, Any], cal: pd.DataFrame, cfg: dict[str, Any],
     noise = rng.gamma(sim["daily_noise_shape"], 1 / sim["daily_noise_shape"], n_days)
     is_mimic = p["archetype"] == "adaptive_mimic"
     match = cal["ipl_match"].to_numpy()
-    match_mult = 1.3 if is_mimic else bcfg["match_volume_mult"]
 
-    lam_legit = p["base_daily"] * legit_mult * _calendar_mult(p, cal, cprof) * noise
-    lam_bet = p["base_daily"] * bet_mult * np.where(match, match_mult, 1.0) * noise
+    lam_legit = p["base_daily"] * legit_mult * _calendar_mult(p, cal, cprof) * noise \
+        * np.where(match, p["legit_match_mult"], 1.0)
+    lam_bet = p["base_daily"] * bet_mult * np.where(match, p["bet_match_mult"], 1.0) * noise
     n_legit, n_bet = rng.poisson(lam_legit), rng.poisson(lam_bet)
 
     # ---- legit (declared-category) business
     days_l = np.repeat(np.arange(n_days), n_legit)
-    hourly = pr.normalise(cprof["hourly"])
+    hourly = pr.normalise(p["hourly"])
     secs_l = pr.sample_seconds_of_day(rng, hourly, days_l.size)
     amt_l = pr.sample_legit_amounts(rng, cprof["amount_median"], cprof["amount_sigma"],
-                                    cprof["price_points"], days_l.size)
+                                    p["legit_price_points"], days_l.size,
+                                    sim["price_tags"], sim["legit_price_tag_share"])
     n_regulars = max(20, int(p["base_daily"] * sim["regulars_per_daily_txn"]))
     regulars = p["city_idx"] * pr.CITY_ID_BLOCK + rng.integers(0, sim["city_payer_pool"], n_regulars)
     pay_l = _legit_payers(p, cfg, days_l.size, rng, regulars)
@@ -119,13 +129,14 @@ def generate_merchant(p: dict[str, Any], cal: pd.DataFrame, cfg: dict[str, Any],
     bet_hourly = hourly if is_mimic else pr.normalise(bcfg["hourly"])
     secs_b = _betting_times(cal, days_b, bcfg, bet_hourly, 0.0 if is_mimic else bcfg["post_wicket_share"], rng)
     amt_b = pr.sample_betting_amounts(rng, p["bet_price_points"], cprof["amount_median"],
-                                      cprof["amount_sigma"], days_b.size, jitter=0.08 if is_mimic else 0.0)
-    bettors = pr.BETTOR_ID_BASE + rng.choice(bcfg["bettor_pool"], bcfg["bettors_per_merchant"], replace=False)
+                                      cprof["amount_sigma"], days_b.size, jitter=p["bet_jitter"])
+    community = pr.BETTOR_ID_BASE + p["bettor_community"] * bcfg["bettor_pool"]
+    bettors = community + rng.choice(bcfg["bettor_pool"], bcfg["bettors_per_merchant"], replace=False)
     pay_b = rng.choice(bettors, size=days_b.size)
     if p["ring_id"] >= 0:
         ring = rng.random(days_b.size) < sim["ring_payer_share"]
         pay_b[ring] = _ring_payers(p, cfg, ring.sum(), rng)
-    local = rng.random(days_b.size) < sim["bet_local_cover_share"]
+    local = rng.random(days_b.size) < p["local_cover"]
     pay_b[local] = p["city_idx"] * pr.CITY_ID_BLOCK + rng.integers(0, sim["city_payer_pool"], local.sum())
     card_b = rng.random(days_b.size) < bcfg["card_share"]
     refund_b = rng.random(days_b.size) < bcfg["refund_rate"]
@@ -153,8 +164,11 @@ def settlements_for(txns: pd.DataFrame, plans: list[dict[str, Any]], cfg: dict[s
                     signed=np.where(txns["is_refund"], -txns["amount"], txns["amount"]))
     daily = t.groupby(["merchant_id", "date"], observed=True).agg(
         payout_amount=("signed", "sum"), bet_share=("is_bet", "mean")).reset_index()
-    fast_ids = {p["merchant_id"] for p in plans if p["fast_payout"]}
-    fast = daily["merchant_id"].isin(fast_ids).to_numpy() | (daily["bet_share"].to_numpy() > 0.3)
+    legit_fast = {p["merchant_id"] for p in plans if p["fast_payout"] and not p["label"]}
+    fraud_fast = {p["merchant_id"] for p in plans if p["fast_payout"] and p["label"]}
+    betting_day = daily["bet_share"].to_numpy() > 0.2              # fraud speeds up once betting starts
+    fast = daily["merchant_id"].isin(legit_fast).to_numpy() \
+        | (daily["merchant_id"].isin(fraud_fast).to_numpy() & betting_day)
     slow_h = rng.uniform(*sim["legit_payout_delay_hours"], len(daily))
     fast_h = rng.uniform(*sim["betting"]["payout_delay_hours"], len(daily))
     daily["payout_delay_hours"] = np.round(np.where(fast, fast_h, slow_h), 1)

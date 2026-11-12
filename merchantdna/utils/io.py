@@ -48,3 +48,9 @@ def read_json(name: str, kind: str = "reports") -> Any:
     """Read <kind>/<name>.json."""
     with open(path_for(kind) / f"{name}.json") as f:
         return json.load(f)
+
+
+def read_labels() -> pd.Series:
+    """Ground-truth label per merchant. ONLY for evaluation and the simulated analyst subset."""
+    m = read_table("merchants", columns=["merchant_id", "label"])
+    return m.set_index("merchant_id")["label"]

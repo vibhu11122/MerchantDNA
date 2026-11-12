@@ -11,9 +11,6 @@ from typing import Any
 
 import numpy as np
 
-BETTING_WEIGHT = 0.8   # share of a full betting merchant's flow that is betting (rest = cover sales)
-
-
 def _active(n_days: int, onboard_day: int) -> np.ndarray:
     """1 on days the merchant exists, 0 before onboarding."""
     return (np.arange(n_days) >= onboard_day).astype(float)
@@ -32,21 +29,20 @@ def daily_plan(p: dict[str, Any], n_days: int) -> tuple[np.ndarray, np.ndarray]:
     bet = np.zeros(n_days)
     w = np.zeros(n_days)                                   # share of flow that is betting
 
+    bw = p["bet_weight"]                                   # share of flow that is betting
     if arch == "growing":
         legit = np.linspace(1.0, p["growth_total"], n_days)
-    elif arch == "betting_collector":
-        w[:] = BETTING_WEIGHT
+    elif arch in ("betting_collector", "adaptive_mimic"):
+        w[:] = bw
     elif arch == "slow_drift":
-        w = BETTING_WEIGHT * _ramp(n_days, p["drift_start"], p["drift_ramp"])
+        w = bw * _ramp(n_days, p["drift_start"], p["drift_ramp"])
     elif arch == "sleeper":
         awake = np.arange(n_days) >= p["wake_day"]
-        legit = np.where(awake, 1 - BETTING_WEIGHT, p["dormant_mult"])
-        bet = np.where(awake, BETTING_WEIGHT * p["burst_mult"], 0.0)
+        legit = np.where(awake, 1 - bw, p["dormant_mult"])
+        bet = np.where(awake, bw * p["burst_mult"], 0.0)
         return legit * active, bet * active
     elif arch == "mule_network" and not p["is_front"]:
         w[:] = p["mule_intensity"]
-    elif arch == "adaptive_mimic":
-        w[:] = BETTING_WEIGHT
 
     legit = legit * (1 - w)
     bet = w * p["bet_scale"]

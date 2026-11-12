@@ -48,6 +48,7 @@ def window_features(tx: pd.DataFrame, settle: pd.DataFrame, ctx: FeatureContext,
         payer_features(w, ctx, first_seen, start_ts, payer_city_counts(w)),
         event_features(w, ctx),
         settlement_features(w, s, ctx),
+        amount_histogram(w, ctx).add_prefix("a").rename(columns=lambda c: f"a{int(c[1:]):02d}"),
     ]
     feat = pd.concat(parts, axis=1).reindex(ctx.merchants["merchant_id"])
     feat.index.name = "merchant_id"
@@ -118,9 +119,6 @@ def main() -> None:
     write_table(cur.reset_index(), "features_current", "artifacts")
     write_table(pd.concat(snaps).reset_index(), "features_snapshots", "artifacts")
     write_table(daily_counts(tx, ctx), "daily_counts", "artifacts")
-    hist = amount_histogram(last, ctx)
-    hist.columns = [str(c) for c in hist.columns]
-    write_table(hist.reset_index(), "amount_hist_current", "artifacts")
     save_artifact(stats, "cohort_stats")
     save_artifact(payer_city_counts(last), "payer_roaming_current")
     log.info("features: %d merchants x %d columns; %d snapshots", len(cur), cur.shape[1], len(snaps))

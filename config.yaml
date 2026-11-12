@@ -51,9 +51,26 @@ sim:
   daily_noise_shape: 20          # gamma overdispersion of daily volume (higher = steadier)
   regulars_per_daily_txn: 2.0     # size of a merchant's regular-customer pool, per avg daily txn
   bet_scale: [1.0, 2.0]           # betting volume relative to the cover business
-  bet_local_cover_share: 0.25     # betting-mode txns paid by local (cover) payers
+  bet_local_cover_share: [0.2, 0.6]   # betting-mode txns paid by local (cover) payers
+  fraud_intensity: [0.3, 0.8]     # share of a fraud merchant's flow that is betting
+  price_point_strength: [0.4, 1.0]   # scales how strongly bets cluster on 499/999/1999
+  hard_negatives:
+    night_hourly: [5,4,3,2,1,0,0,0,1,2,3,3,4,4,3,3,4,5,6,7,8,8,8,7]
+    nationwide_nonlocal_share: 0.45
+    fixed_menu_price_points: {499: 0.25, 999: 0.12}
+    sports_bar_match_mult: 1.7
+  mimic:                          # adaptive_mimic: copies a bakery as closely as it can
+    jitter: 0.15
+    price_point_strength: 0.35
+    local_cover_share: 0.5
+    match_mult: 1.0
   ring_payer_pool: 600
   ring_payer_share: 0.5           # share of a ring member's betting txns from the ring pool
+  price_tags: [99, 149, 199, 249, 299, 349, 399, 449, 499, 599, 699, 799, 899, 999, 1199, 1499, 1999, 2499, 2999, 4999]
+  legit_price_tag_share: 0.25     # honest amounts snapped to a common price tag (MRP-style)
+  traveller_pool: 30000           # honest payers who pay merchants in many cities
+  legit_traveller_share: 0.03
+  nationwide_traveller_share: 0.25
   city_payer_pool: 200000         # payers who live in each city
   nonlocal_payer_share: 0.05      # legit customers from other cities
 
@@ -141,7 +158,9 @@ sim:
     match_volume_mult: 2.5
     post_wicket_share: 0.35       # share of match-evening txns right after wickets
     post_wicket_minutes: 10
-    bettor_pool: 3000             # nationwide payers who bet
+    bettor_pool: 3000             # nationwide payers who bet, per betting community
+    n_bettor_communities: 4       # separate betting apps / rings
+    fast_payout_prob: 0.6         # fraud merchants that take instant settlement
     bettors_per_merchant: 400
     bettor_repeat_prob: 0.75
     payout_delay_hours: [2, 6]
@@ -153,16 +172,20 @@ sim:
 
   # Merchant archetype mix (shares of the non-hero population)
   archetypes:
-    normal: 0.602
+    normal: 0.528
+    night_owl: 0.02               # honest late-night restaurant / 24h pharmacy (hard negative)
+    nationwide_seller: 0.02       # honest online seller with payers all over India (hard negative)
+    fixed_menu: 0.015             # honest restaurant with INR 499 / 999 combos (hard negative)
+    sports_bar: 0.015             # honest restaurant that is busy on match evenings (hard negative)
     festival_surge: 0.10          # assigned to bakery / grocery / electronics only
     growing: 0.08
     new_merchant: 0.08
     franchise: 0.06
     family_shared_device: 0.02    # honest merchants sharing one device (hard negative)
-    betting_collector: 0.018
+    betting_collector: 0.014
     slow_drift: 0.012
     sleeper: 0.008
-    mule_network: 0.012
+    mule_network: 0.02
     adaptive_mimic: 0.008
   fraud_archetypes: [betting_collector, slow_drift, sleeper, mule_network, adaptive_mimic]
   surge_mult: [8, 12]             # festival_surge peak Diwali multiplier
@@ -205,32 +228,46 @@ models:
     payer_min_shared: 5
     payer_min_jaccard: 0.02
     payer_max_merchants_per_payer: 50
+    identity_prior_weight: 1.0    # shrinks neighbour risk when ties are weak
+    payer_prior_weight: 0.1
+    propagate_above_pct: 0.8      # only neighbours in the top 20% of behavioural suspicion pass it on
   innocence:
     quantiles: [0.05, 0.5, 0.95]
-    peer_band: [0.1, 0.9]         # peer uplift percentiles that define "normal for peers"
+    peer_band: [0.05, 0.95]       # peer uplift percentiles that define "normal for peers"
     exceed_tolerance: 0.15        # share of window days allowed above the band
     composition_z: 3.0            # robust z above which a composition shift "fires"
     min_peer_uplift_festival: 1.3
+    volume_up_ratio: 1.5          # 30-day volume vs own history that counts as "volume is up"
+    min_js: 0.05                  # minimum Jensen-Shannon distance for a shift to count
+    calib_days: 14                # last pre-window days held out for conformal calibration
+    min_ref_days: 14              # history days needed to judge volume
   fusion:
     labelled_share: 0.10
     labelled_fraud_share: 0.25
     population_prior: 0.05        # analysts' estimate of drift prevalence
-    n_estimators: 150
+    n_estimators: 60
     learning_rate: 0.05
     max_depth: 2
-    min_child_samples: 4
+    min_child_samples: 8
+    reg_lambda: 5.0
+    colsample_bytree: 0.5         # each tree sees half the signals -> evidence spread over many
+    subsample: 0.8
+    calibration: sigmoid          # sigmoid (Platt) suits ~80 labels; isotonic overfits below ~1000
 
 # ---------------------------------------------------------------- decision
 decision:
-  tiers: {medium: 30, high: 70}   # 0-100 risk score thresholds
-  harm_if_missed: 500000          # INR, expected loss + regulatory exposure
-  cost_disrupt_legit: 40000       # INR, cost of wrongly disrupting an honest merchant
+  # Tiers on the 0-100 score (= calibrated P(drift) x 100), for humans to read at a glance.
+  # The ACTION comes from expected cost. With the default costs below the best rung is:
+  # Monitor < 4.6% < Soft step-up < 40% < Reserve < 61.5% < Limit < 74% < Suspend.
+  tiers: {medium: 15, high: 50}
+  harm_if_missed: 500000          # INR: expected loss + regulatory exposure of a missed betting front (per cycle)
+  cost_disrupt_legit: 600000      # INR: churn, lost lifetime value, complaints if an honest merchant is hit
   analyst_capacity: 25            # merchants analysts can review per cycle
   rungs:                          # [name, share of harm prevented, share of disruption cost]
     - [Monitor, 0.0, 0.0]
-    - [Soft step-up (ask merchant to explain), 0.25, 0.02]
-    - [Rolling reserve / settlement hold, 0.6, 0.15]
-    - [Limit reduction, 0.75, 0.35]
+    - [Soft step-up (ask merchant to explain), 0.25, 0.01]
+    - [Rolling reserve / settlement hold, 0.6, 0.2]
+    - [Limit reduction, 0.75, 0.4]
     - [Suspend + escalate, 1.0, 1.0]
 
 # ---------------------------------------------------------------- evaluation

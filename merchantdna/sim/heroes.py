@@ -10,7 +10,8 @@ HEROES: list[dict] = [
     {   # Bakery that drifts into collecting bets from mid-period: expected HIGH risk
         "merchant_id": "M0001", "name": "FreshOven Bakery", "category": "bakery",
         "city": "Pune", "archetype": "slow_drift", "drift_start_frac": 0.5, "drift_ramp": 35,
-        "base_daily": 45.0, "has_website": True, "website_style": "gaming",
+        "base_daily": 45.0, "has_website": True, "website_style": "gaming", "bet_weight": 0.8,
+        "fast_payout": True,
         "bet_price_points": {999: 0.70, 499: 0.10, 1999: 0.05},
     },
     {   # Normal-looking grocery that shares a device + IP with a mule ring: expected MEDIUM

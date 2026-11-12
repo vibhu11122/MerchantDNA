@@ -68,6 +68,12 @@ def _category_for(arch: str, cfg: dict[str, Any], rng: np.random.Generator) -> s
         return str(rng.choice(["bakery", "grocery", "electronics"], p=[0.6, 0.2, 0.2]))
     if arch == "adaptive_mimic":
         return "bakery"
+    if arch == "night_owl":
+        return str(rng.choice(["restaurant", "pharmacy"]))
+    if arch == "nationwide_seller":
+        return str(rng.choice(["bakery", "grocery", "electronics"]))
+    if arch in ("fixed_menu", "sports_bar"):
+        return "restaurant"
     if arch in cfg["sim"]["fraud_archetypes"]:
         return str(rng.choice(["bakery", "grocery", "restaurant", "pharmacy"]))
     names = list(cats)
@@ -110,10 +116,20 @@ def build_merchants(cfg: dict[str, Any], n: int, n_days: int,
             "diwali_mult": cprof["diwali_mult"], "onboard_day": -1, "is_front": False,
             "ring_id": -1, "bet_scale": float(rng.uniform(*sim["bet_scale"])),
             "mule_intensity": sim["mule_betting_intensity"],
-            "bet_price_points": hero.get("bet_price_points", sim["betting"]["price_points"]),
-            "fast_payout": bool(rng.random() < sim["legit_fast_payout_share"]),
-            "is_franchise": False,
+            "bet_weight": hero.get("bet_weight", float(rng.uniform(*sim["fraud_intensity"]))),
+            "local_cover": float(rng.uniform(*sim["bet_local_cover_share"])),
+            "pp_strength": float(rng.uniform(*sim["price_point_strength"])),
+            "bet_jitter": 0.0, "bet_match_mult": sim["betting"]["match_volume_mult"],
+            "fast_payout": hero.get("fast_payout", bool(rng.random() < (
+                sim["betting"]["fast_payout_prob"] if arch in sim["fraud_archetypes"]
+                else sim["legit_fast_payout_share"]))),
+            "bettor_community": int(rng.integers(sim["betting"]["n_bettor_communities"])),
+            "traveller_share": sim["legit_traveller_share"],
+            "slow_payout": False, "is_franchise": False,
+            "hourly": cprof["hourly"], "legit_price_points": cprof["price_points"],
+            "nonlocal_share": sim["nonlocal_payer_share"], "legit_match_mult": 1.0,
         }
+        _apply_variant(p, hero, sim)
         if arch == "festival_surge":
             p["diwali_mult"] = hero.get("surge_mult", float(rng.uniform(*sim["surge_mult"])))
         elif arch == "growing":
@@ -148,6 +164,29 @@ def build_merchants(cfg: dict[str, Any], n: int, n_days: int,
     _link_identities(plans, cfg, rng)
     table = _to_table(plans, cfg, n_days, rng)
     return table, plans
+
+
+def _apply_variant(p: dict[str, Any], hero: dict[str, Any], sim: dict[str, Any]) -> None:
+    """Archetype-specific tweaks: hard-negative honest variants and the adaptive mimic."""
+    hn, arch = sim["hard_negatives"], p["archetype"]
+    if arch == "night_owl":
+        p["hourly"] = list(0.5 * np.asarray(p["hourly"]) / sum(p["hourly"])
+                           + 0.5 * np.asarray(hn["night_hourly"]) / sum(hn["night_hourly"]))
+    elif arch == "nationwide_seller":
+        p["nonlocal_share"] = hn["nationwide_nonlocal_share"]
+        p["traveller_share"] = sim["nationwide_traveller_share"]
+    elif arch == "fixed_menu":
+        p["legit_price_points"] = hn["fixed_menu_price_points"]
+    elif arch == "sports_bar":
+        p["legit_match_mult"] = hn["sports_bar_match_mult"]
+    elif arch == "adaptive_mimic":
+        mm = sim["mimic"]
+        p.update(bet_jitter=mm["jitter"], pp_strength=mm["price_point_strength"],
+                 local_cover=mm["local_cover_share"], bet_match_mult=mm["match_mult"],
+                 slow_payout=True, fast_payout=False)
+    points = hero.get("bet_price_points", sim["betting"]["price_points"])
+    strength = 1.0 if "bet_price_points" in hero else p["pp_strength"]
+    p["bet_price_points"] = {k: v * strength for k, v in points.items()}
 
 
 def _link_identities(plans: list[dict[str, Any]], cfg: dict[str, Any], rng: np.random.Generator) -> None:

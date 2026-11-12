@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 CITY_ID_BLOCK = 1_000_000          # payer id = city_index * block + k
+TRAVELLER_ID_BASE = 40_000_000     # honest payers who travel / shop online across cities
 BETTOR_ID_BASE = 50_000_000        # nationwide bettor pool ids start here
 RING_ID_BASE = 60_000_000          # mule ring shared payer pools start here
 RING_ID_BLOCK = 10_000
@@ -22,9 +23,14 @@ def sample_seconds_of_day(rng: np.random.Generator, hourly: np.ndarray, n: int) 
 
 
 def sample_legit_amounts(rng: np.random.Generator, median: float, sigma: float,
-                         price_points: dict[int, float], n: int) -> np.ndarray:
-    """Lognormal basket amounts, with a share of exact fixed prices (e.g. tuition fees)."""
+                         price_points: dict[int, float], n: int,
+                         tags: list[int] | None = None, tag_share: float = 0.0) -> np.ndarray:
+    """Lognormal basket amounts; some snapped to common price tags (x99, x49), some fixed prices."""
     amounts = np.round(median * np.exp(sigma * rng.standard_normal(n)))
+    if tags and tag_share > 0:
+        snap = rng.random(n) < tag_share
+        t = np.asarray(tags, dtype=float)
+        amounts[snap] = t[np.abs(amounts[snap, None] - t[None, :]).argmin(axis=1)]
     if price_points:
         prices = np.array(list(price_points.keys()), dtype=float)
         shares = np.array(list(price_points.values()))
