@@ -25,7 +25,7 @@ Requires `uv` (https://docs.astral.sh/uv/) — or create any Python 3.11 venv at
 | Features | `make features` | `artifacts/features_*.parquet`: 117 features per merchant per window (7d/30d, own-history and peer-relative) |
 | Models | `make train` | `artifacts/`: website classifier, behavioural verifier, DNA autoencoder + UMAP, identity and payer graphs, Innocence Engine, calibrated fusion, SHAP drivers, action ladder, evidence per merchant |
 | Evaluation | `make eval` | `reports/metrics.json`, PR curves, ablations, stress test, lead time |
-| Dashboard | `make app` | 6 pages: Command Center, Merchant Deep Dive, DNA Map, Network Graph, Investigation Report, Model Lab |
+| Dashboard | `make app` | Home + 3 pages: Merchant Story (score, evidence, Innocence check, connections, explain step, report + draft STR), DNA Map, Proof & Try It |
 
 ## Headline results (720 held-out synthetic merchants)
 

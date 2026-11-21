@@ -122,6 +122,8 @@ The rung is chosen by expected cost: act if `P(drift) × harm_if_missed > (1 −
    - "Inject Diwali spike" into a genuine bakery, then re-score and show it cleared.
    - "Make FreshOven mimic a bakery" (jitter amounts, shift hours), then re-score and show which signals still fire.
 
+**Round 2 simplification (Nov 2026):** the six pages above were merged into Home + 3 pages for the stall demo. Home = overview + top-10 queue. Merchant Story = Deep Dive + Network + Investigation Report + auto-drafted STR. DNA Map is unchanged. Proof & Try It = headline metrics + the two live controls, with the full Model Lab detail in a collapsed expander. See docs/decisions.md.
+
 UI copy: plain English, no jargon in headings, every score shown with its reasons.
 
 ## 10. Tech stack and conventions
@@ -145,7 +147,7 @@ merchantdna/
     sim/  features/  models/  decision/  eval/  utils/
   app/
     Home.py
-    pages/1_Command_Center.py ... 6_Model_Lab.py
+    pages/1_Merchant_Story.py  2_DNA_Map.py  3_Proof_and_Try_It.py
   data/  artifacts/  reports/
   tests/
   docs/ demo_script.md  architecture.md  limitations.md

@@ -9,7 +9,7 @@ import theme
 theme.setup("Home")
 theme.need_artefacts()
 s, m = data.scores(), data.metrics()
-md, iso = m["methods"]["merchantdna"], m["methods"]["isolation_forest"]
+md = m["methods"]["merchantdna"]
 
 theme.page_header(
     "MerchantDNA",
@@ -20,14 +20,13 @@ theme.page_header(
 
 st.markdown('<div class="callout">Too strict hurts genuine merchants. Too lax lets fraud continue. MerchantDNA explains before it flags.</div>', unsafe_allow_html=True)
 
+flagged = int((s["rung_index"] > 0).sum())
 theme.kpis([
     {"label": "Merchants monitored", "value": f"{len(s):,}", "sub": "120 days · 4.7M payments", "tone": "blue"},
-    {"label": "High risk", "value": int((s["tier"] == "HIGH").sum()), "sub": "score ≥ 50", "tone": "red"},
-    {"label": "Medium risk", "value": int((s["tier"] == "MEDIUM").sum()), "sub": "ask the merchant", "tone": "amber"},
-    {"label": "PR-AUC (held-out)", "value": f"{md['pr_auc']:.2f}", "sub": f"+{md['pr_auc'] - iso['pr_auc']:.2f} vs Isolation Forest",
-     "tone": "green", "trend": "up"},
-    {"label": "Festival false alarms", "value": f"{md['at_native_threshold']['surge_fpr']:.0%}",
-     "sub": f"rules: {m['methods']['static_rules']['at_native_threshold']['surge_fpr']:.0%}", "tone": "green"},
+    {"label": "Flagged for review", "value": flagged,
+     "sub": f"{int((s['tier'] == 'HIGH').sum())} high · {int((s['tier'] == 'MEDIUM').sum())} medium", "tone": "red"},
+    {"label": "Festival merchants wrongly flagged", "value": f"{md['at_native_threshold']['surge_fpr']:.0%}",
+     "sub": f"static rules: {m['methods']['static_rules']['at_native_threshold']['surge_fpr']:.0%}", "tone": "green"},
 ])
 
 theme.section("The three demo merchants", "scores come from the models — nothing is hard-coded", first=True)
@@ -37,7 +36,7 @@ blurbs = {"M0000": "Genuine bakery with a 10× Diwali spike.",
 for col, (mid, name) in zip(st.columns(3), theme.HEROES.items()):
     with col:
         st.markdown(theme.hero_card(name, blurbs[mid], s.loc[mid]), unsafe_allow_html=True)
-        theme.open_page("pages/2_Merchant_Deep_Dive.py", mid, f"Open {name.split()[0]} →", key=f"open_{mid}")
+        theme.open_page("pages/1_Merchant_Story.py", mid, f"Open {name.split()[0]} →", key=f"open_{mid}")
 
 theme.section("How it works", "three signal pillars, one arbiter, one proportionate action")
 steps = [
@@ -51,10 +50,18 @@ st.markdown('<div class="steps">' + "".join(
     f'<div class="step"><div class="n">{i + 1}</div><div class="t">{t}</div><div class="d">{d}</div></div>'
     for i, (t, d) in enumerate(steps)) + "</div>", unsafe_allow_html=True)
 
-st.markdown("")
-with st.container(border=True):
-    st.markdown('<div class="ptitle">Regulatory hook</div>', unsafe_allow_html=True)
+theme.section("Top 10 to review", "highest expected benefit first · click a hero card above for the full story")
+ev = data.evidence()
+q = s[s["rung_index"] > 0].sort_values("net_benefit", ascending=False).head(10).copy()
+q["Top reason"] = [ev[i]["drivers"][0]["label"] if ev[i]["drivers"] else "" for i in q.index]
+show = q[["name", "declared_category", "risk_score", "tier", "rung", "Top reason"]].rename(columns={
+    "name": "Merchant", "declared_category": "Declared", "risk_score": "Risk", "tier": "Tier", "rung": "Recommended action"})
+show["Declared"] = show["Declared"].str.replace("_", " ")
+st.dataframe(theme.style_table(show, {"Risk": "{:.0f}"}, tier_col="Tier"), use_container_width=True,
+             column_config={"Risk": st.column_config.ProgressColumn("Risk", min_value=0, max_value=100, format="%d")})
+
+with st.expander("Why this matters: the regulatory hook"):
     st.markdown("Under the **Promotion and Regulation of Online Gaming Act 2025**, payment intermediaries may not "
                 "facilitate online-money-game transactions, and the **RBI Payment Aggregator Directions (Sept 2025)** "
                 "require continuous monitoring of merchant transactions against the business profile. MerchantDNA turns "
-                "that obligation into a working system with an audit trail.")
+                "that obligation into a working system with an audit trail — down to a drafted STR an analyst can file.")

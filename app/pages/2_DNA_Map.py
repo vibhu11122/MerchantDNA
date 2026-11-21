@@ -11,7 +11,7 @@ import streamlit as st
 import data
 import theme
 
-theme.setup("Merchant DNA Map")
+theme.setup("DNA Map")
 theme.need_artefacts()
 s = data.scores()
 traj = data.table("dna_trajectory")
