@@ -48,4 +48,4 @@ docs/                  plan, decisions, architecture, limitations, demo script, 
 tests/                 simulator, leakage, hero tiers, app pages
 ```
 
-Read `docs/decisions.md` for every change we made after seeing a result, and `docs/limitations.md` before quoting a number.
+Read `docs/decisions.md` for every change we made after seeing a result, and `docs/limitations.md` before quoting a number. For how this would run at a real payment aggregator (regulation, architecture, rollout, open problems), see `docs/real_world_deployment.md`.

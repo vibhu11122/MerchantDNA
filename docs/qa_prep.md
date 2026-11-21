@@ -1,5 +1,7 @@
 # Judge Q&A — ten hard questions, answered with our numbers
 
+> For "Can this work in real life?" questions (RBI PA Directions, Gaming Act, STR filing, rollout, DPDP), use `docs/real_world_deployment.md`.
+
 **1. "Your data is synthetic. Why should we believe any of this?"**
 You shouldn't believe the numbers as a forecast; believe the *method*. There is no public labelled dataset for this problem, so we built a simulator and say so on every page. We made it deliberately hard: honest night pharmacies, online sellers with payers across India, restaurants with ₹499 combos, sports bars busy on match nights, family shops sharing a device, fraud merchants that vary in intensity and that mimic bakeries. The first version scored 1.00 PR-AUC; after making it realistic, 0.97 with a 0.93–0.99 bootstrap interval. The pipeline is designed so that real merchant data drops in at the `data/` layer with no model change.
 
