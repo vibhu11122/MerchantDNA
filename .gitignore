@@ -5,3 +5,9 @@ data/*.parquet
 artifacts/
 reports/sim/
 .pytest_cache/
+
+# Private: kept locally, not published
+docs/
+KICKOFF_PROMPT.md
+*.pdf
+data/
