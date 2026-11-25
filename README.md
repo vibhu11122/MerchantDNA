@@ -44,8 +44,7 @@ config.yaml            every tunable number
 merchantdna/sim        synthetic data        merchantdna/models    all models + scoring
 merchantdna/features   feature store         merchantdna/decision  action ladder, Explain step, report
 merchantdna/eval       baselines, metrics    app/                  Streamlit pages
-docs/                  plan, decisions, architecture, limitations, demo script, Q&A, code guide PDF
 tests/                 simulator, leakage, hero tiers, app pages
 ```
 
-Read `docs/decisions.md` for every change we made after seeing a result, and `docs/limitations.md` before quoting a number. For how this would run at a real payment aggregator (regulation, architecture, rollout, open problems), see `docs/real_world_deployment.md`.
+All data is synthetic. Read the numbers as proof of method, not a forecast of production performance.
